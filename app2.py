@@ -131,7 +131,7 @@ if uploaded_file:
                         m_idx = headline_indices.index(r)
                         txt = cell.get_text()
                         txt.set_text(f"{machine_info[m_idx]} 優秀台")
-                        txt.set_fontsize(28)
+                        txt.set_fontsize(24)
                         txt.set_weight('bold')
                         txt.set_color('black')
                         # 文字がセルの幅で切れないように設定
