@@ -7,14 +7,17 @@ import os
 import urllib.request
 
 # --- 1. フォント設定 (Streamlit Cloudでの日本語化) ---
+@st.cache_resource
 def setup_plt_font():
-    font_path = "NotoSansJP-Regular.ttf"
-    font_url = "https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf"
+    # Boldを使用することで視認性を高めます
+    font_path = "NotoSansJP-Bold.ttf"
+    font_url = "https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/Japanese/NotoSansCJKjp-Bold.otf"
     
     if not os.path.exists(font_path):
         try:
             urllib.request.urlretrieve(font_url, font_path)
-        except:
+        except Exception as e:
+            st.error(f"フォントのダウンロードに失敗しました: {e}")
             return None
 
     fm.fontManager.addfont(font_path)
@@ -35,7 +38,7 @@ def get_machine_rows(df, csv_name, display_name, threshold):
         return None
     
     rows = []
-    rows.append([""] * 7) # 見出し行用
+    rows.append([""] * 7) # 見出し行用（インデックス保持）
     rows.append(['台番', '機種名', 'ゲーム数', 'BIG', 'REG', 'AT', '差枚数'])
     
     for _, row in e_df.iterrows():
@@ -43,15 +46,15 @@ def get_machine_rows(df, csv_name, display_name, threshold):
             str(row['台番']),
             display_name,
             f"{int(row['G数']):,}G",
-            str(row['BB']),
-            str(row['RB']),
-            str(row['ART']),
+            str(int(row['BB'])),
+            str(int(row['RB'])),
+            str(int(row['ART'])),
             f"+{int(row['差枚']):,}枚"
         ])
     return rows
 
 # --- 3. アプリUI ---
-st.set_page_config(page_title="優秀台表作成ツール v2", layout="centered")
+st.set_page_config(page_title="優秀台表作成ツール v3", layout="centered")
 st.title("🎰 優秀台表作成アプリ")
 
 setup_plt_font()
@@ -60,14 +63,15 @@ uploaded_file = st.file_uploader("CSVファイルをアップロードしてく�
 
 if uploaded_file:
     try:
-        df = pd.read_csv(uploaded_file, encoding='cp932')
-    except:
+        # エンコーディング対応
         try:
+            df = pd.read_csv(uploaded_file, encoding='cp932')
+        except:
             uploaded_file.seek(0)
             df = pd.read_csv(uploaded_file, encoding='utf-8')
-        except Exception as e:
-            st.error("CSV読み込み失敗")
-            st.stop()
+    except Exception as e:
+        st.error(f"CSV読み込み失敗: {e}")
+        st.stop()
 
     all_machines = df['機種名（データサイト表記）'].unique().tolist()
     
@@ -104,25 +108,38 @@ if uploaded_file:
                     master_rows.append([""] * 7)
 
         if master_rows:
-            fig, ax = plt.subplots(figsize=(16, len(master_rows) * 0.9))
+            # グラフの作成
+            fig, ax = plt.subplots(figsize=(16, len(master_rows) * 0.8))
             ax.axis('off')
-            table = ax.table(cellText=master_rows, colWidths=[0.1, 0.25, 0.15, 0.1, 0.1, 0.1, 0.2], loc='center', cellLoc='center')
+            
+            table = ax.table(
+                cellText=master_rows, 
+                colWidths=[0.1, 0.2, 0.15, 0.1, 0.1, 0.1, 0.25], 
+                loc='center', 
+                cellLoc='center'
+            )
             table.auto_set_font_size(False)
-            table.scale(1.0, 3.8)
+            table.scale(1.0, 3.8) # 行の高さ調整
 
             cells = table.get_celld()
             for (r, c), cell in cells.items():
-                # --- 【修正ポイント】見出しの設定 ---
+                # 見出し（赤帯）の設定
                 if r in headline_indices:
-                    cell.set_facecolor('#FF4B4B') # 指定の赤
-                    if c == 3: # 中央列にテキスト
-                        cell.get_text().set_text(f"{machine_info[headline_indices.index(r)]} 優秀台")
-                        cell.get_text().set_fontsize(28)
-                        cell.get_text().set_weight('bold') # 太字
-                        cell.get_text().set_color('white') # 白文字
+                    cell.set_facecolor('#FF4B4B') 
+                    cell.set_edgecolor('#FF4B4B')
+                    if c == 3: # 4列目にテキストを配置
+                        m_idx = headline_indices.index(r)
+                        txt = cell.get_text()
+                        txt.set_text(f"{machine_info[m_idx]} 優秀台")
+                        txt.set_fontsize(28)
+                        txt.set_weight('bold')
+                        txt.set_color('white')
+                        # 文字がセルの幅で切れないように設定
+                        txt.set_clip_on(False)
                     else:
                         cell.get_text().set_text("")
-                    # 枠線
+                    
+                    # 見出しの枠線を繋げて一本の帯に見せる
                     if c == 0: cell.visible_edges = 'TLB'
                     elif c == 6: cell.visible_edges = 'TRB'
                     else: cell.visible_edges = 'TB'
@@ -130,20 +147,36 @@ if uploaded_file:
                 # ヘッダー（黒）
                 elif r in header_indices:
                     cell.set_facecolor('#444444')
-                    cell.get_text().set_color('white')
-                    cell.get_text().set_weight('bold')
-                    cell.get_text().set_fontsize(20)
-                # 余白
+                    cell.set_edgecolor('#444444')
+                    txt = cell.get_text()
+                    txt.set_color('white')
+                    txt.set_weight('bold')
+                    txt.set_fontsize(20)
+                
+                # 機種間の余白
                 elif r in separator_indices:
                     cell.set_facecolor('white')
                     cell.set_height(0.03)
                     cell.visible_edges = ''
+                    cell.get_text().set_text("")
+                
                 # データ行
                 else:
                     cell.set_facecolor('#F2F2F2' if r % 2 == 0 else 'white')
                     cell.get_text().set_fontsize(18)
 
+            # 画像の出力
             buf = io.BytesIO()
             plt.savefig(buf, format='png', bbox_inches='tight', dpi=150)
-            st.image(buf)
-            st.download_button("画像をダウンロード", buf.getvalue(), "result.png", "image/png")
+            buf.seek(0)
+            st.image(buf, use_container_width=True)
+            
+            # ダウンロードボタン
+            st.download_button(
+                label="画像をダウンロード",
+                data=buf.getvalue(),
+                file_name="syuseidai_report.png",
+                mime="image/png"
+            )
+        else:
+            st.warning("条件に一致するデータが見つかりませんでした。")
