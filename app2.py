@@ -156,7 +156,7 @@ if uploaded_file:
                 # 機種間の余白
                 elif r in separator_indices:
                     cell.set_facecolor('white')
-                    cell.set_height(0.03)
+                    cell.set_height(0.01)
                     cell.visible_edges = ''
                     cell.get_text().set_text("")
                 
