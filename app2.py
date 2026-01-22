@@ -131,7 +131,7 @@ if uploaded_file:
             for (r, c), cell in cells.items():
                 # 見出し（青）
                 if r in headline_indices:
-                    cell.set_facecolor('#ADD8E6')
+                    cell.set_facecolor('#FF4B4B')
                     if c == 3:
                         idx = headline_indices.index(r)
                         cell.get_text().set_text(f"{machine_info[idx]} 優秀台")
