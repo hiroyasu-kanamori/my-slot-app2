@@ -133,7 +133,7 @@ if uploaded_file:
                         txt.set_text(f"{machine_info[m_idx]} 優秀台")
                         txt.set_fontsize(28)
                         txt.set_weight('bold')
-                        txt.set_color('white')
+                        txt.set_color('black')
                         # 文字がセルの幅で切れないように設定
                         txt.set_clip_on(False)
                     else:
